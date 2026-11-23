@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model ⇄ Code</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='5' width='22' height='22' rx='3' transform='rotate(15 16 16)' fill='%2346c2ff'/%3E%3Crect x='13' y='13' width='6' height='6' fill='%230d1117'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #0d1016; --panel: #151a23; --panel2: #1b2130; --line: #273044; --text: #e6eaf2; --muted: #8b95a8; --accent: #46c2ff; --accent2: #7c5cff;
+  --ok: #3ddc97; --warn: #ffb547; --err: #ff6b6b; --code-bg: #0f131b;
+  --k: #c792ea; --s: #c3e88d; --n: #f78c6c; --c: #5c6a80; --g: #82aaff; --e: #ffcb6b;
+  --mono: "JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, select, input { font: inherit; color: inherit; }
+header { display: flex; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #121722, var(--bg)); flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.brand svg { width: 30px; height: 30px; }
+.brand h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+.brand p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.tabs { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.tabs button { background: none; border: 0; padding: 7px 16px; border-radius: 7px; cursor: pointer; color: var(--muted); font-weight: 600; }
+.tabs button.on { background: var(--panel2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+main { padding: 18px 22px 30px; max-width: 1500px; margin: 0 auto; }
+.view { display: none; grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1.1fr); gap: 16px; }
+.view.on { display: grid; }
+@media (max-width: 900px) { .view { grid-template-columns: 1fr; } main { padding: 12px 12px 24px; } header { padding: 12px; } }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.card-h { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 46px; }
+.card-h h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 auto 0 0; font-weight: 700; }
+.btn { background: var(--panel2); border: 1px solid var(--line); padding: 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: #3a4560; }
+.btn.primary { background: linear-gradient(135deg, var(--accent), #2a8fff); border-color: transparent; color: #04121d; font-weight: 700; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .45; cursor: default; }
+.drop { margin: 14px; border: 2px dashed #34405a; border-radius: 12px; padding: 26px 16px; text-align: center; cursor: pointer; transition: .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: rgba(70, 194, 255, .06); }
+.drop b { display: block; font-size: 15px; margin-bottom: 4px; }
+.drop span { color: var(--muted); font-size: 13px; }
+.drop .file { margin-top: 10px; color: var(--accent); font-family: var(--mono); font-size: 12.5px; }
+.paste { padding: 0 14px 14px; display: none; }
+.paste.on { display: block; }
+.paste textarea { width: 100%; height: 130px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: 12px var(--mono); padding: 8px; resize: vertical; }
+.linkbtn { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; font-size: 13px; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: #131823; font-size: 13px; color: var(--muted); }
+.opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.opts select, .opts input[type=number] { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; color: var(--text); }
+.opts input[type=number] { width: 52px; }
+.codebox { position: relative; flex: 1; min-height: 420px; background: var(--code-bg); }
+.codebox pre, .codebox textarea { margin: 0; position: absolute; inset: 0; padding: 12px 14px 12px 54px; font: 12.5px/1.55 var(--mono); white-space: pre; overflow: auto; tab-size: 4; border: 0; }
+.codebox pre { color: var(--text); pointer-events: none; }
+.codebox textarea { background: transparent; color: transparent; caret-color: var(--text); resize: none; outline: none; }
+.codebox textarea::selection { background: rgba(70, 194, 255, .28); color: transparent; }
+.codebox .gutter { white-space: pre; position: absolute; left: 0; top: 0; bottom: 0; width: 44px; overflow: hidden; color: #3f4a60; font: 12.5px/1.55 var(--mono); text-align: right; padding: 12px 8px 12px 0; border-right: 1px solid #1c2230; user-select: none; pointer-events: none; background: var(--code-bg); }
+.codebox.readonly pre { pointer-events: auto; user-select: text; }
+.t-k { color: var(--k); } .t-s { color: var(--s); } .t-n { color: var(--n); } .t-c { color: var(--c); font-style: italic; } .t-g { color: var(--g); } .t-e { color: var(--e); }
+.split { display: grid; grid-template-columns: 1fr; }
+.pv { position: relative; height: 340px; background: radial-gradient(ellipse at 50% 30%, #1b2335, #0f131b 70%); cursor: grab; }
+.pv canvas { display: block; }
+.pv-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); pointer-events: none; font-size: 13px; }
+.pv-hint { position: absolute; right: 10px; bottom: 8px; font-size: 11.5px; color: #59657c; pointer-events: none; }
+.tree { max-height: 340px; min-height: 120px; overflow: auto; padding: 8px 6px; font-size: 13px; }
+.tree .row { display: flex; align-items: center; gap: 6px; padding: 2px 6px; border-radius: 5px; white-space: nowrap; }
+.tree .row:hover { background: var(--panel2); }
+.tree .cls { color: var(--muted); font-size: 11.5px; }
+.tree .ico { width: 16px; height: 16px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #0d1016; flex: none; }
+.tree .tw { width: 12px; color: var(--muted); cursor: pointer; flex: none; text-align: center; }
+.empty { color: var(--muted); padding: 18px; text-align: center; font-size: 13px; }
+.seg { display: flex; gap: 2px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { border: 0; background: none; padding: 3px 10px; border-radius: 6px; cursor: pointer; color: var(--muted); font-size: 12.5px; }
+.seg button.on { background: #2a3347; color: var(--text); }
+.console { font: 12.5px/1.5 var(--mono); padding: 10px 12px; max-height: 170px; overflow: auto; background: var(--code-bg); }
+.console div { white-space: pre-wrap; word-break: break-word; }
+.console .ok { color: var(--ok); } .console .err { color: var(--err); } .console .warn { color: var(--warn); } .console .dim { color: var(--muted); }
+.stat { font-size: 12.5px; color: var(--muted); }
+.stat b { color: var(--text); }
+.notes { padding: 8px 12px; font-size: 12.5px; color: var(--warn); border-top: 1px solid var(--line); display: none; }
+.notes.on { display: block; }
+.help { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.help .card { padding: 14px 16px; }
+.help h3 { margin: 0 0 6px; font-size: 14px; }
+.help ol, .help ul { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
+.help li { margin: 3px 0; }
+.help code { font-family: var(--mono); font-size: 12px; background: var(--panel2); padding: 1px 5px; border-radius: 4px; color: var(--text); }
+input.name { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; width: 150px; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: #222a3b; border: 1px solid var(--line); padding: 8px 16px; border-radius: 10px; opacity: 0; transition: .2s; pointer-events: none; z-index: 10; }
+.toast.on { opacity: 1; transform: translateX(-50%); }
+kbd { font: 11px var(--mono); background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="5" width="22" height="22" rx="3" transform="rotate(15 16 16)" fill="#46c2ff"/><rect x="13" y="13" width="6" height="6" fill="#0d1117"/></svg>
+    <div><h1>Model ⇄ Code</h1><p>Turn Roblox models into Luau scripts, and scripts back into models</p></div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button id="tab-m2c" class="on" data-view="m2c">Model → Code</button>
+    <button id="tab-c2m" data-view="c2m">Code → Model</button>
+  </nav>
+</header>
+
+<main>
+  <!-- MODEL -> CODE -->
+  <section class="view on" id="view-m2c">
+    <div class="col">
+      <div class="card">
+        <div class="card-h"><h2>1 · Your model</h2></div>
+        <div class="drop" id="drop">
+          <b>Drop a .rbxm or .rbxmx file here</b>
+          <span>or click to choose one · in Studio: right-click a model → <em>Save to File…</em></span>
+          <div class="file" id="file-name"></div>
+        </div>
+        <input type="file" id="file-input" accept=".rbxm,.rbxmx,.rbxl,.rbxlx,.xml" hidden>
+        <div style="padding:0 14px 12px"><button class="linkbtn" id="paste-toggle">…or paste .rbxmx XML instead</button></div>
+        <div class="paste" id="paste"><textarea id="paste-text" placeholder="&lt;roblox ...&gt; ... &lt;/roblox&gt;"></textarea><div style="margin-top:8px"><button class="btn" id="paste-go">Convert pasted XML</button></div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Look inside</h2><div class="seg" id="m2c-seg"><button class="on" data-p="pv">3D</button><button data-p="tree">Explorer</button></div></div>
+        <div class="pv" id="m2c-pv"><div class="pv-hint">drag: rotate · shift/right-drag: pan · wheel: zoom</div></div>
+        <div class="tree" id="m2c-tree" hidden><div class="empty">Load a model to see its instances</div></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card" style="flex:1">
+        <div class="card-h">
+          <h2>2 · Luau code</h2>
+          <span class="stat" id="m2c-stat"></span>
+          <button class="btn" id="m2c-copy" disabled>Copy</button>
+          <button class="btn" id="m2c-dl" disabled>Download .lua</button>
+          <button class="btn primary" id="m2c-send" disabled title="Open this code in Code → Model">Edit as code →</button>
+        </div>
+        <div class="opts">
+          <label><input type="checkbox" id="o-compact" checked> Skip default values</label>
+          <label><input type="checkbox" id="o-scripts" checked> Include script sources</label>
+          <label>Rotation <select id="o-cf"><option value="angles">CFrame.Angles</option><option value="matrix">Full matrix</option></select></label>
+          <label>Decimals <input type="number" id="o-prec" value="3" min="0" max="8"></label>
+          <label>Parent to <select id="o-parent"><option value="workspace">workspace</option><option value="game.ReplicatedStorage">ReplicatedStorage</option><option value="game.ServerStorage">ServerStorage</option><option value="none">(nothing, just return it)</option></select></label>
+        </div>
+        <div class="codebox readonly"><div class="gutter" id="m2c-gutter"></div><pre id="m2c-code"><span class="t-c">-- Your generated code will appear here.</span></pre></div>
+        <div class="notes" id="m2c-notes"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CODE -> MODEL -->
+  <section class="view" id="view-c2m">
+    <div class="col">
+      <div class="card" style="flex:1">
+        <div class="card-h">
+          <h2>1 · Luau code</h2>
+          <select class="btn" id="examples"><option value="">Examples…</option></select>
+          <button class="btn primary" id="run">Build model ▶</button>
+        </div>
+        <div class="codebox" id="editor-box"><div class="gutter" id="c2m-gutter"></div><pre id="c2m-hl" aria-hidden="true"></pre><textarea id="c2m-code" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div>
+        <div class="opts" style="border-top:1px solid var(--line);border-bottom:0"><span>Runs in your browser against a mock Roblox API · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to build</span></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card">
+        <div class="card-h">
+          <h2>2 · Your model</h2>
+          <span class="stat" id="c2m-stat"></span>
+          <input class="name" id="c2m-name" value="MyModel" title="File name">
+          <button class="btn primary" id="c2m-dl" disabled>Download .rbxmx</button>
+        </div>
+        <div class="card-h" style="min-height:40px;padding:6px 12px"><h2 style="font-size:12px">Output</h2><div class="seg" id="c2m-seg"><button class="on" data-p="pv">3D</button><button data-p="tree">Explorer</button></div></div>
+        <div class="pv" id="c2m-pv" style="height:380px"><div class="pv-hint">drag: rotate · shift/right-drag: pan · wheel: zoom</div></div>
+        <div class="tree" id="c2m-tree" hidden style="max-height:380px"><div class="empty">Build your code to see the result</div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Console</h2><button class="btn" id="c2m-copyxml" disabled>Copy XML</button></div>
+        <div class="console" id="console"><div class="dim">print() output and errors show up here.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="help">
+    <div class="card"><h3>Getting a model file out of Studio</h3><ol><li>Select your Model in the Explorer.</li><li>Right-click → <b>Save to File…</b> (or <b>Export Selection</b>).</li><li>Drop the <code>.rbxm</code> / <code>.rbxmx</code> here.</li></ol></div>
+    <div class="card"><h3>Getting your model into Studio</h3><ol><li>Build it on the <b>Code → Model</b> tab and download the <code>.rbxmx</code>.</li><li>In Studio, right-click <b>Workspace</b> → <b>Insert from File…</b></li><li>Or paste the code into a Script / the command bar and run it.</li></ol></div>
+    <div class="card"><h3>Good to know</h3><ul><li>MeshPart meshes &amp; union shapes can't be rebuilt by scripts — they're kept as placeholders.</li><li>Setting <code>.Source</code> only works from the command bar or plugins.</li><li>Most Luau syntax works; <code>if-then-else</code> expressions and generics aren't supported in Code → Model.</li><li>Everything runs locally in your browser — files are never uploaded.</li></ul></div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/rbxm.js"></script>
+<script src="js/rbxmx.js"></script>
+<script src="js/codegen.js"></script>
+<script src="js/runtime.js"></script>
+<script src="js/preview.js"></script>
+<script src="js/examples.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
